@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .loading-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-chart-line text-2xl"></i>
+                    <h1 class="text-2xl font-bold">Personal Finance Agent</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="connectBank" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
+                        <i class="fas fa-link mr-2"></i>Connect Bank
+                    </button>
+                    <button id="demoMode" class="bg-purple-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-600 transition">
+                        <i class="fas fa-play mr-2"></i>Try Demo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden text-center py-12">
+            <div class="loading-animation inline-block w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+            <p class="mt-4 text-gray-600">Analyzing your financial data...</p>
+        </div>
+
+        <!-- Welcome State -->
+        <div id="welcomeState" class="text-center py-12">
+            <i class="fas fa-piggy-bank text-6xl text-purple-600 mb-6"></i>
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Welcome to Your Personal Finance Agent</h2>
+            <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+                Connect your bank account to get intelligent insights about your spending, 
+                detect anomalies, and receive personalized budget recommendations.
+            </p>
+            <div class="flex justify-center space-x-4">
+                <button id="connectBankMain" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition flex items-center">
+                    <i class="fas fa-shield-alt mr-2"></i>Secure Bank Connection
+                </button>
+                <button id="demoModeMain" class="bg-gray-200 text-gray-800 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition flex items-center">
+                    <i class="fas fa-eye mr-2"></i>View Demo
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="hidden">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm font-medium">Total Spending</p>
+                            <p id="totalSpending" class="text-2xl font-bold text-gray-900">$0</p>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded-full">
+                            <i class="fas fa-credit-card text-red-600"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm font-medium">Transactions</p>
+                            <p id="totalTransactions" class="text-2xl font-bold text-gray-900">0</p>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-receipt text-blue-600"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm font-medium">Avg Transaction</p>
+                            <p id="avgTransaction" class="text-2xl font-bold text-gray-900">$0</p>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-chart-bar text-green-600"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm font-medium">Anomalies Detected</p>
+                            <p id="anomaliesCount" class="text-2xl font-bold text-red-600">0</p>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded-full">
+                            <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Spending by Category -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-chart-pie mr-2 text-purple-600"></i>Spending by Category
+                    </h3>
+                    <canvas id="categoryChart" width="400" height="300"></canvas>
+                </div>
+
+                <!-- Monthly Trends -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-chart-line mr-2 text-blue-600"></i>Spending Trends
+                    </h3>
+                    <canvas id="trendsChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+
+            <!-- Anomalies Section -->
+            <div id="anomaliesSection" class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-search mr-2 text-red-600"></i>Spending Anomalies
+                </h3>
+                <div id="anomaliesList" class="space-y-3">
+                    <!-- Anomalies will be populated here -->
+                </div>
+            </div>
+
+            <!-- Budget Suggestions -->
+            <div id="suggestionsSection" class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-lightbulb mr-2 text-yellow-600"></i>Budget Optimization Suggestions
+                </h3>
+                <div id="suggestionsList" class="space-y-4">
+                    <!-- Suggestions will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-history mr-2 text-green-600"></i>Recent Transactions
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsList" class="bg-white divide-y divide-gray-200">
+                            <!-- Transactions will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toast notifications will appear here -->
+    </div>
+
+    <script>
+        // Global variables
+        let accessToken = null;
+        let currentData = null;
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners
+            document.getElementById('connectBank').addEventListener('click', initiatePlaidConnection);
+            document.getElementById('connectBankMain').addEventListener('click', initiatePlaidConnection);
+            document.getElementById('demoMode').addEventListener('click', loadDemoData);
+            document.getElementById('demoModeMain').addEventListener('click', loadDemoData);
+        });
+
+        // Plaid Connection
+        async function initiatePlaidConnection() {
+            try {
+                showLoading(true);
+                
+                // Get link token from backend
+                const response = await fetch('/api/create_link_token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Initialize Plaid Link
+                const linkHandler = Plaid.create({
+                    token: data.link_token,
+                    onSuccess: (public_token, metadata) => {
+                        exchangePublicToken(public_token);
+                    },
+                    onExit: (err, metadata) => {
+                        showLoading(false);
+                        if (err != null) {
+                            showToast('Connection failed: ' + err.message, 'error');
+                        }
+                    },
+                    onEvent: (eventName, metadata) => {
+                        // Handle events
+                    }
+                });
+
+                linkHandler.open();
+                showLoading(false);
+                
+            } catch (error) {
+                showLoading(false);
+                showToast('Failed to initiate bank connection: ' + error.message, 'error');
+            }
+        }
+
+        // Exchange public token for access token
+        async function exchangePublicToken(publicToken) {
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/api/exchange_public_token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ public_token: publicToken })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                accessToken = data.access_token;
+                loadTransactionData();
+                
+            } catch (error) {
+                showLoading(false);
+                showToast('Failed to connect account: ' + error.message, 'error');
+            }
+        }
+
+        // Load transaction data
+        async function loadTransactionData() {
+            try {
+                const response = await fetch('/api/transactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ access_token: accessToken, days: 30 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                currentData = data;
+                displayDashboard(data);
+                showLoading(false);
+                showToast('Successfully loaded your financial data!', 'success');
+                
+            } catch (error) {
+                showLoading(false);
+                showToast('Failed to load transaction data: ' + error.message, 'error');
+            }
+        }
+
+        // Load demo data
+        async function loadDemoData() {
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/api/demo_data');
+                const data = await response.json();
+                
+                currentData = data;
+                displayDashboard(data);
+                showLoading(false);
+                showToast('Demo data loaded successfully!', 'info');
+                
+            } catch (error) {
+                showLoading(false);
+                showToast('Failed to load demo data: ' + error.message, 'error');
+            }
+        }
+
+        // Display dashboard with data
+        function displayDashboard(data) {
+            // Hide welcome state, show dashboard
+            document.getElementById('welcomeState').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+
+            // Update summary cards
+            document.getElementById('totalSpending').textContent = formatCurrency(Math.abs(data.insights.total_spending || 0));
+            document.getElementById('totalTransactions').textContent = data.total_transactions || 0;
+            document.getElementById('avgTransaction').textContent = formatCurrency(Math.abs(data.insights.avg_transaction || 0));
+            document.getElementById('anomaliesCount').textContent = data.anomalies?.length || 0;
+
+            // Create charts
+            createCategoryChart(data.insights.category_breakdown || {});
+            createTrendsChart(data.insights.monthly_trends || {});
+
+            // Display anomalies
+            displayAnomalies(data.anomalies || []);
+
+            // Display budget suggestions
+            displaySuggestions(data.budget_suggestions || []);
+
+            // Display recent transactions
+            displayTransactions(data.transactions || []);
+        }
+
+        // Create category pie chart
+        function createCategoryChart(categoryData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            const colors = [
+                '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', 
+                '#EF4444', '#EC4899', '#6366F1', '#84CC16'
+            ];
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create trends line chart
+        function createTrendsChart(trendsData) {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(trendsData),
+                    datasets: [{
+                        label: 'Monthly Spending',
+                        data: Object.values(trendsData),
+                        borderColor: '#8B5CF6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Display anomalies
+        function displayAnomalies(anomalies) {
+            const container = document.getElementById('anomaliesList');
+            
+            if (anomalies.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 italic">No spending anomalies detected. Great job staying consistent!</p>';
+                return;
+            }
+
+            container.innerHTML = anomalies.map(anomaly => `
+                <div class="border-l-4 border-red-500 bg-red-50 p-4 rounded-r-lg">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-red-800">${anomaly.description}</h4>
+                            <p class="text-red-600 text-sm mt-1">${anomaly.reason}</p>
+                            <p class="text-gray-600 text-xs mt-1">Date: ${new Date(anomaly.date).toLocaleDateString()}</p>
+                        </div>
+                        <div class="text-red-800 font-bold">
+                            ${formatCurrency(Math.abs(anomaly.amount))}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Display budget suggestions
+        function displaySuggestions(suggestions) {
+            const container = document.getElementById('suggestionsList');
+            
+            if (suggestions.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 italic">Your spending looks well-balanced! No specific recommendations at this time.</p>';
+                return;
+            }
+
+            container.innerHTML = suggestions.map(suggestion => `
+                <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded-r-lg">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-yellow-800">${suggestion.category}</h4>
+                            <p class="text-yellow-700 mt-1">${suggestion.suggestion}</p>
+                            <div class="text-sm text-yellow-600 mt-2">
+                                Current spending: ${formatCurrency(suggestion.current_spending)} 
+                                (${suggestion.percentage.toFixed(1)}% of total)
+                            </div>
+                        </div>
+                        <div class="text-green-600 font-semibold">
+                            Save ${formatCurrency(suggestion.potential_savings)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Display recent transactions
+        function displayTransactions(transactions) {
+            const container = document.getElementById('transactionsList');
+            
+            // Sort transactions by date (most recent first)
+            const sortedTransactions = transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            container.innerHTML = sortedTransactions.slice(0, 20).map(transaction => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm text-gray-900">
+                        ${new Date(transaction.date).toLocaleDateString()}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-900">
+                        ${transaction.description}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                            ${transaction.category}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}">
+                        ${formatCurrency(Math.abs(transaction.amount))}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Utility functions
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loadingState');
+            const welcome = document.getElementById('welcomeState');
+            const dashboard = document.getElementById('dashboard');
+            
+            if (show) {
+                loading.classList.remove('hidden');
+                welcome.classList.add('hidden');
+                dashboard.classList.add('hidden');
+            } else {
+                loading.classList.add('hidden');
+                // Don't automatically show welcome or dashboard here
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500',
+                warning: 'bg-yellow-500'
+            };
+            
+            toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
