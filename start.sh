@@ -26,7 +26,7 @@ fi
 
 # Start the application
 echo "🚀 Starting the application..."
-echo "🌐 Open http://localhost:8080 in your browser"
+echo "🌐 Open http://localhost:3000 in your browser"
 echo "🎮 Click 'Try Demo' to test with sample data"
 echo "🔗 Click 'Connect Bank' to link real accounts (requires Plaid API setup)"
 echo ""
